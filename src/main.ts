@@ -196,7 +196,7 @@ const createHotkeyCaptureWindow = () => {
     maximizable: false,
     webPreferences: {
       contextIsolation: false,
-      nodeIntegration: true,
+      nodeIntegration: false, // Disabled for security
     },
     skipTaskbar: true,
     show: false,
@@ -493,7 +493,7 @@ const createContextMenuWindow = () => {
     maximizable: false,
     webPreferences: {
       contextIsolation: false,
-      nodeIntegration: true,
+      nodeIntegration: false, // Disabled for security
     },
     skipTaskbar: true,
     show: false,
