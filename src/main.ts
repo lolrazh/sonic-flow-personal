@@ -107,6 +107,12 @@ const createWindow = () => {
     },
   });
 
+  // Handle window close event
+  mainWindow.on('close', () => {
+    console.log('Main window close event triggered, quitting application');
+    app.quit();
+  });
+
   // Position window at the bottom center of the screen
   const { width, height } = mainWindow.getBounds();
   const primaryDisplay = screen.getPrimaryDisplay();
@@ -377,18 +383,6 @@ const createHotkeyCaptureWindow = () => {
     </html>
   `;
   
-  // Set up IPC handlers for the hotkey window
-  ipcMain.on('save-hotkey', (_, hotkey: string) => {
-    if (isValidHotkeyFormat(hotkey)) {
-      handleHotkeyChange(hotkey);
-    }
-    hideHotkeyCaptureWindow();
-  });
-  
-  ipcMain.on('cancel-hotkey', () => {
-    hideHotkeyCaptureWindow();
-  });
-  
   // Load the HTML
   captureWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(captureHtml)}`);
   
@@ -607,27 +601,6 @@ const createContextMenuWindow = () => {
     </html>
   `;
   
-  // Set up IPC handlers for the context menu actions
-  ipcMain.on('menu-account', () => {
-    console.log('Account clicked');
-    hideContextMenu();
-  });
-  
-  ipcMain.on('menu-hide', () => {
-    console.log('Hide for one hour clicked');
-    hideContextMenu();
-  });
-  
-  ipcMain.on('menu-hotkey', () => {
-    hideContextMenu();
-    showHotkeyCaptureWindow();
-  });
-  
-  ipcMain.on('menu-exit', () => {
-    hideContextMenu();
-    app.quit();
-  });
-  
   // Load the HTML
   contextMenuWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(contextMenuHtml)}`);
   
@@ -755,10 +728,10 @@ ipcMain.handle('insert-text-at-cursor', async (_, text) => {
 // Clean up temporary files when the app quits
 app.on('quit', () => {
   try {
-    // Close the log stream properly
-    if (logStream) {
-      logStream.end();
-    }
+    // Close the log stream properly - Moved to will-quit
+    // if (logStream) {
+    //   logStream.end();
+    // }
     
     // Clean up temp files
     cleanupTempFiles();
@@ -946,6 +919,41 @@ app.on('will-quit', () => {
     console.error('Error during will-quit cleanup:', error);
   }
 });
+
+// === IPC Handlers for Hotkey Window (Registered ONCE) ===
+ipcMain.on('save-hotkey', (_, hotkey: string) => {
+  if (isValidHotkeyFormat(hotkey)) {
+    handleHotkeyChange(hotkey);
+  }
+  hideHotkeyCaptureWindow();
+});
+
+ipcMain.on('cancel-hotkey', () => {
+  hideHotkeyCaptureWindow();
+});
+// === END IPC Handlers ===
+
+// === IPC Handlers for Context Menu (Registered ONCE) ===
+ipcMain.on('menu-account', () => {
+  console.log('Account clicked');
+  hideContextMenu();
+});
+
+ipcMain.on('menu-hide', () => {
+  console.log('Hide for one hour clicked');
+  hideContextMenu();
+});
+
+ipcMain.on('menu-hotkey', () => {
+  hideContextMenu();
+  showHotkeyCaptureWindow();
+});
+
+ipcMain.on('menu-exit', () => {
+  hideContextMenu();
+  app.quit();
+});
+// === END IPC Handlers ===
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
