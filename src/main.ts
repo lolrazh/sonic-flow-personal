@@ -671,95 +671,80 @@ const hideContextMenu = () => {
 
 // Add a handler for insert-text-at-cursor
 ipcMain.handle('insert-text-at-cursor', async (_, text) => {
+  let originalClipboardText: string | undefined = undefined;
   try {
     console.log('=== TEXT INSERTION PROCESS START ===');
     console.log('Attempting to insert text at cursor:', text);
     
-    // Copy the text to clipboard
+    // Read and store the current clipboard content (text only)
     const { clipboard } = require('electron');
-    clipboard.writeText(text);
-    console.log('Text copied to clipboard');
+    originalClipboardText = clipboard.readText();
+    console.log('Original clipboard text stored.');
+
+    // Copy the transcription text to clipboard
+    const trimmedText = text.trimStart(); // Trim leading whitespace
+    clipboard.writeText(trimmedText); // Use trimmed text
+    console.log('Transcription text copied to clipboard');
     
     // Simulate paste keystroke using the active window
     const activeWindow = BrowserWindow.getFocusedWindow();
+    let pasteSuccess = false;
+    let pasteError: string | null = null;
     
     if (!activeWindow) {
       console.log('No Electron window is focused, sending paste command to OS');
       
-      // For Windows
-      if (process.platform === 'win32') {
+      // Platform-specific paste simulation
+      try {
         const { execSync } = require('child_process');
-        try {
+        if (process.platform === 'win32') {
           console.log('Executing paste command via PowerShell');
-          // Send Ctrl+V using PowerShell
           execSync('powershell -command "$wshell = New-Object -ComObject wscript.shell; $wshell.SendKeys(\'^v\')"');
-          console.log('Paste command executed successfully');
-          console.log('=== TEXT INSERTION PROCESS COMPLETE ===');
-          return { success: true };
-        } catch (err) {
-          console.error('Failed to execute paste command:', err);
-          console.log('=== TEXT INSERTION PROCESS FAILED ===');
-          return { 
-            success: false, 
-            error: 'Unable to paste text. Please make sure a text field is focused.'
-          };
-        }
-      } 
-      // For macOS
-      else if (process.platform === 'darwin') {
-        const { execSync } = require('child_process');
-        try {
+        } else if (process.platform === 'darwin') {
           console.log('Executing paste command via AppleScript');
-          // Send Cmd+V using AppleScript
           execSync('osascript -e \'tell application "System Events" to keystroke "v" using command down\'');
-          console.log('Paste command executed successfully');
-          console.log('=== TEXT INSERTION PROCESS COMPLETE ===');
-          return { success: true };
-        } catch (err) {
-          console.error('Failed to execute paste command:', err);
-          console.log('=== TEXT INSERTION PROCESS FAILED ===');
-          return { 
-            success: false, 
-            error: 'Unable to paste text. Please make sure a text field is focused.'
-          };
-        }
-      }
-      // For Linux
-      else if (process.platform === 'linux') {
-        const { execSync } = require('child_process');
-        try {
+        } else if (process.platform === 'linux') {
           console.log('Executing paste command via xdotool');
-          // Send Ctrl+V using xdotool
           execSync('xdotool key ctrl+v');
-          console.log('Paste command executed successfully');
-          console.log('=== TEXT INSERTION PROCESS COMPLETE ===');
-          return { success: true };
-        } catch (err) {
-          console.error('Failed to execute paste command:', err);
-          console.log('=== TEXT INSERTION PROCESS FAILED ===');
-          return { 
-            success: false, 
-            error: 'Unable to paste text. Please make sure a text field is focused.'
-          };
+        } else {
+          throw new Error('Unsupported platform for OS-level paste');
         }
+        console.log('Paste command executed successfully via OS');
+        pasteSuccess = true;
+      } catch (err) {
+        console.error('Failed to execute paste command:', err);
+        pasteError = 'Unable to paste text. Please make sure a text field is focused.';
+        pasteSuccess = false;
       }
-      
-      console.log('=== TEXT INSERTION PROCESS FAILED ===');
-      return { 
-        success: false, 
-        error: 'Unable to paste text. Please make sure a text field is focused.'
-      };
+    } else {
+      // If an Electron window is focused, use webContents.paste()
+      console.log('Electron window is focused, using webContents.paste()');
+      activeWindow.webContents.paste();
+      console.log('Paste command executed via webContents');
+      pasteSuccess = true; // Assume success for webContents.paste
     }
     
-    // If an Electron window is focused, we can use the webContents to send the paste command
-    console.log('Electron window is focused, using webContents.paste()');
-    activeWindow.webContents.paste();
-    console.log('Paste command executed via webContents');
-    console.log('=== TEXT INSERTION PROCESS COMPLETE ===');
-    return { success: true };
+    // Restore the original clipboard content AFTER attempting paste
+    clipboard.writeText(originalClipboardText);
+    console.log('Original clipboard text restored.');
+
+    if (pasteSuccess) {
+      console.log('=== TEXT INSERTION PROCESS COMPLETE ===');
+      return { success: true };
+    } else {
+      console.log('=== TEXT INSERTION PROCESS FAILED ===');
+      return { success: false, error: pasteError };
+    }
+    
   } catch (error) {
     console.error('=== TEXT INSERTION PROCESS FAILED ===');
     console.error('Failed to insert text at cursor:', error);
+    // Restore clipboard even if there was an error before paste attempt (e.g., clipboard access)
+    if (typeof originalClipboardText !== 'undefined') {
+      const { clipboard } = require('electron');
+      clipboard.writeText(originalClipboardText);
+      console.log('Original clipboard text restored after error.');
+    }
     return { 
       success: false, 
       error: 'Unable to insert text at cursor. Please make sure a text field is focused.'
