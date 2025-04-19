@@ -11,10 +11,18 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     // Explicitly point to the .ico file for packaging
-    icon: 'assets/icon.ico' 
+    icon: 'assets/icon' 
   },
   rebuildConfig: {},
-  makers: [new MakerSquirrel({}), new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],
+  makers: [
+    new MakerSquirrel({
+      // The ICO file to use as the icon for the generated Setup.exe
+      setupIcon: 'assets/icon'
+    }), 
+    new MakerZIP({}, ['darwin']), 
+    new MakerRpm({}), 
+    new MakerDeb({})
+  ],
   plugins: [
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
