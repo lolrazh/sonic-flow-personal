@@ -27,7 +27,12 @@ const config: ForgeConfig = {
         {
           entry: 'src/preload.ts',
           config: 'vite.preload.config.ts',
-          target: 'preload',
+          target: 'preload'
+        },
+        {
+          entry: 'src/contextmenu-preload.ts',
+          config: 'vite.preload.config.ts',
+          target: 'preload'
         },
       ],
       renderer: [

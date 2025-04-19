@@ -492,8 +492,10 @@ const createContextMenuWindow = () => {
     minimizable: false,
     maximizable: false,
     webPreferences: {
-      contextIsolation: false,
-      nodeIntegration: false, // Disabled for security
+      // Use the new preload script
+      preload: path.join(__dirname, 'contextmenu-preload.js'), 
+      contextIsolation: true, // Enable context isolation (required for contextBridge)
+      nodeIntegration: false, // Keep nodeIntegration disabled for security
     },
     skipTaskbar: true,
     show: false,
@@ -578,25 +580,31 @@ const createContextMenuWindow = () => {
       </div>
       
       <script>
-        const { ipcRenderer } = require('electron');
+        // Remove require('electron') - no longer needed and wouldn't work anyway
+        // const { ipcRenderer } = require('electron'); 
         
-        // Set up button click handlers
-        document.getElementById('accountBtn').addEventListener('click', () => {
-          ipcRenderer.send('menu-account');
-        });
-        
-        document.getElementById('hideBtn').addEventListener('click', () => {
-          ipcRenderer.send('menu-hide');
-        });
-        
-        document.getElementById('hotkeyBtn').addEventListener('click', () => {
-          ipcRenderer.send('menu-hotkey');
-        });
-        
-        document.getElementById('exitBtn').addEventListener('click', () => {
-          console.log('[Context Menu] Exit button clicked, sending menu-exit IPC...');
-          ipcRenderer.send('menu-exit');
-        });
+        // Ensure the API is available before adding listeners
+        if (window.contextMenuAPI) {
+          // Set up button click handlers using the exposed API
+          document.getElementById('accountBtn').addEventListener('click', () => {
+            window.contextMenuAPI.send('menu-account');
+          });
+          
+          document.getElementById('hideBtn').addEventListener('click', () => {
+            window.contextMenuAPI.send('menu-hide');
+          });
+          
+          document.getElementById('hotkeyBtn').addEventListener('click', () => {
+            window.contextMenuAPI.send('menu-hotkey');
+          });
+          
+          document.getElementById('exitBtn').addEventListener('click', () => {
+            console.log('[Context Menu] Exit button clicked, sending menu-exit IPC via contextMenuAPI...');
+            window.contextMenuAPI.send('menu-exit');
+          });
+        } else {
+          console.error('[Context Menu] contextMenuAPI not found on window object!');
+        }
       </script>
     </body>
     </html>
