@@ -594,6 +594,7 @@ const createContextMenuWindow = () => {
         });
         
         document.getElementById('exitBtn').addEventListener('click', () => {
+          console.log('[Context Menu] Exit button clicked, sending menu-exit IPC...');
           ipcRenderer.send('menu-exit');
         });
       </script>
@@ -950,8 +951,11 @@ ipcMain.on('menu-hotkey', () => {
 });
 
 ipcMain.on('menu-exit', () => {
+  console.log('[IPC Main] Received menu-exit event');
   hideContextMenu();
+  console.log('[IPC Main] Calling app.quit()...');
   app.quit();
+  console.log('[IPC Main] app.quit() called.');
 });
 // === END IPC Handlers ===
 
