@@ -916,8 +916,14 @@ app.on('will-quit', () => {
     
     // Clean up tray icon
     if (tray) {
-      tray.destroy();
-      tray = null;
+      try {
+        console.log('[IPC Main] Destroying tray icon...');
+        tray.destroy();
+        tray = null; // Nullify the reference
+        console.log('[IPC Main] Tray icon destroyed.');
+      } catch (error) {
+        console.error('[IPC Main] Error destroying tray icon:', error);
+      }
     }
     
     // Close the log stream properly
@@ -961,6 +967,19 @@ ipcMain.on('menu-hotkey', () => {
 ipcMain.on('menu-exit', () => {
   console.log('[IPC Main] Received menu-exit event');
   hideContextMenu();
+  
+  // Explicitly destroy the tray icon before quitting
+  if (tray) {
+    try {
+      console.log('[IPC Main] Destroying tray icon...');
+      tray.destroy();
+      tray = null; // Nullify the reference
+      console.log('[IPC Main] Tray icon destroyed.');
+    } catch (error) {
+      console.error('[IPC Main] Error destroying tray icon:', error);
+    }
+  }
+  
   console.log('[IPC Main] Calling app.quit()...');
   app.quit();
   console.log('[IPC Main] app.quit() called.');
