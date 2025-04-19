@@ -193,7 +193,6 @@ const handleHotkeyChange = (newHotkey: string) => {
   updateSetting('hotkey', newHotkey);
   currentHotkey = newHotkey;
   registerGlobalShortcut();
-  updateTrayMenu();
 };
 
 // Create the hotkey capture window once and reuse it
@@ -461,7 +460,6 @@ const createTray = () => {
     // Load the icon from the assets folder
     const icon = nativeImage.createFromPath(iconPath);
     
-    // Check if the icon was loaded successfully
     if (icon.isEmpty()) {
       console.error(`Failed to load tray icon from path: ${iconPath}. Using empty icon.`);
       tray = new Tray(nativeImage.createEmpty()); // Fallback to empty
@@ -470,37 +468,32 @@ const createTray = () => {
       tray = new Tray(icon);
     }
     
-    // Initial tray menu
-    updateTrayMenu();
-    
     tray.setToolTip('Sonic Flow');
+
+    // Listen for right-click events on the tray icon
+    tray.on('right-click', (event, bounds) => {
+      console.log(`[Tray Event] Right-click detected on tray icon at bounds: x=${bounds.x}, y=${bounds.y}, w=${bounds.width}, h=${bounds.height}`);
+      // Calculate position near the tray icon (e.g., above it)
+      const menuSize = contextMenuWindow?.getSize() || [140, 150]; // Use default size if window not ready
+      const x = Math.floor(bounds.x + (bounds.width / 2) - (menuSize[0] / 2));
+      // Position above the tray icon bounds
+      const y = Math.floor(bounds.y - menuSize[1]); 
+      console.log(`[Tray Event] Calculated menu position: x=${x}, y=${y}`);
+      // Show the custom HTML context menu at the calculated position
+      showContextMenu(x, y);
+    });
+
+    // Optional: Handle left-click if needed (e.g., toggle main window?)
+    // tray.on('click', () => {
+    //   console.log('[Tray Event] Left-click detected.');
+    //   // Example: mainWindow?.show();
+    // });
+
   } catch (error) {
     console.error('Failed to create tray:', error);
     // Ensure tray is null if creation fails
     if (tray) tray.destroy();
     tray = null; 
-  }
-};
-
-// Update the tray menu to show current hotkey
-const updateTrayMenu = () => {
-  if (!tray) return;
-  
-  try {
-    const contextMenu = Menu.buildFromTemplate([
-      { label: 'Account', click: () => console.log('Account clicked') },
-      { label: 'Hide for 1 Hour', click: () => console.log('Hide for one hour clicked') },
-      { 
-        label: 'Change Hotkey',
-        click: () => showHotkeyCaptureWindow()
-      },
-      { type: 'separator' },
-      { label: 'Exit', click: () => app.quit() },
-    ]);
-    
-    tray.setContextMenu(contextMenu);
-  } catch (error) {
-    console.error('Failed to update tray menu:', error);
   }
 };
 
@@ -652,19 +645,38 @@ const createContextMenuWindow = () => {
 };
 
 // Show the custom context menu
-const showContextMenu = () => {
-  if (contextMenuOpen || !mainWindow || !contextMenuWindow) return;
+// Accepts optional x, y coordinates for positioning
+const showContextMenu = (x?: number, y?: number) => {
+  if (contextMenuOpen || !contextMenuWindow) return;
+  // Ensure mainWindow is available if positioning relative to it
+  if (x === undefined && y === undefined && !mainWindow) return;
+  
   contextMenuOpen = true;
   
-  // Position above the pill
-  const pillBounds = mainWindow.getBounds();
   const menuSize = contextMenuWindow.getSize();
+
+  let positionX: number;
+  let positionY: number;
+
+  if (x !== undefined && y !== undefined) {
+    // Position based on provided coordinates (from tray click)
+    console.log(`[showContextMenu] Positioning menu at provided coordinates: x=${x}, y=${y}`);
+    positionX = x;
+    positionY = y;
+  } else if (mainWindow) {
+    // Position relative to the pill (mainWindow)
+    console.log(`[showContextMenu] Positioning menu relative to pill (mainWindow).`);
+    const pillBounds = mainWindow.getBounds();
+    positionX = Math.floor(pillBounds.x + (pillBounds.width / 2) - (menuSize[0] / 2));
+    positionY = pillBounds.y - menuSize[1] - 2;
+  } else {
+    // Fallback if coordinates not provided and mainWindow doesn't exist
+    console.warn('[showContextMenu] Cannot determine position. Coordinates not provided and mainWindow is null.');
+    return; // Can't position, so don't show
+  }
   
   // Position centered above the pill
-  contextMenuWindow.setPosition(
-    Math.floor(pillBounds.x + (pillBounds.width / 2) - (menuSize[0] / 2)),
-    pillBounds.y - menuSize[1] - 2 // Reduced vertical offset from 5 to 2 to be even closer to the pill
-  );
+  contextMenuWindow.setPosition(positionX, positionY);
   
   // Show the window
   contextMenuWindow.show();
@@ -901,9 +913,11 @@ app.whenReady().then(() => {
   createTray();
   createContextMenuWindow();
 
-  // Set up IPC handler for showing the custom context menu
+  // Set up IPC handler for showing the custom context menu (from pill click)
   ipcMain.on('show-context-menu', () => {
-    showContextMenu();
+    console.log('[IPC Main] Received show-context-menu event (from pill).');
+    // Call showContextMenu without coordinates to position relative to the pill
+    showContextMenu(); 
   });
 });
 
