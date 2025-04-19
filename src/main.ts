@@ -87,15 +87,13 @@ const HOTKEY_OPTIONS = [
   'Ctrl+D'
 ];
 
-// Define the path to the icon using app.getAppPath(), pointing to the .ico file
-const assetsDir = path.join(app.getAppPath(), 'assets');
-const iconPath = path.join(assetsDir, 'icon.ico'); // Explicitly use .ico
+// Determine the path to the icon file (works in both packaged and dev environments)
+const iconPath = path.join(__dirname, 'assets', 'icon.ico');
 
-// Add a check to see if the icon file actually exists at runtime
-if (!fs.existsSync(iconPath)) {
-  console.error(`!!! Icon file not found at expected path: ${iconPath} !!!`);
-  // Optionally, you could try a fallback path or exit here
-}
+// Optional: Remove the fs.existsSync check as it won't work reliably with asar
+// if (!fs.existsSync(iconPath)) { // This check might fail with asar
+//   console.error(`!!! Icon file not found at expected path: ${iconPath} !!!`);
+// }
 
 const createWindow = () => {
   // Create the browser window.

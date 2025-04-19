@@ -2,7 +2,7 @@
   "name": "sonic-flow",
   "productName": "sonic-flow",
   "version": "1.0.0",
-  "description": "My Electron application description",
+  "description": "Lightweight AI dictation app",
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
