@@ -63,9 +63,14 @@ const Pill: React.FC<PillProps> = ({
 
   // Handle context menu
   const handleContextMenu = (e: React.MouseEvent) => {
-    // Check if the electron API exists and has the showContextMenu method
-    if (window.electron && 'showContextMenu' in window.electron) {
-      (window.electron as any).showContextMenu();
+    e.preventDefault(); // Prevent default browser context menu
+    console.log(`[Pill] Context menu requested.`); // Removed coordinate logging
+    // Check if the electron API exists and has the showPillContextMenu method
+    if (window.electron && 'showPillContextMenu' in window.electron) {
+      // Call without coordinates
+      (window.electron as any).showPillContextMenu();
+    } else {
+      console.warn('[Pill] window.electron.showPillContextMenu not available.');
     }
   };
   

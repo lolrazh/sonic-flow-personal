@@ -473,14 +473,12 @@ const createTray = () => {
     // Listen for right-click events on the tray icon
     tray.on('right-click', (event, bounds) => {
       console.log(`[Tray Event] Right-click detected on tray icon at bounds: x=${bounds.x}, y=${bounds.y}, w=${bounds.width}, h=${bounds.height}`);
-      // Calculate position near the tray icon (e.g., above it)
-      const menuSize = contextMenuWindow?.getSize() || [140, 150]; // Use default size if window not ready
-      const x = Math.floor(bounds.x + (bounds.width / 2) - (menuSize[0] / 2));
-      // Position above the tray icon bounds
-      const y = Math.floor(bounds.y - menuSize[1]); 
-      console.log(`[Tray Event] Calculated menu position: x=${x}, y=${y}`);
-      // Show the custom HTML context menu at the calculated position
-      showContextMenu(x, y);
+      // Use the bottom-right corner of the bounds as the anchor
+      const anchorX = bounds.x + bounds.width;
+      const anchorY = bounds.y + bounds.height;
+      console.log(`[Tray Event] Calculated menu anchor: x=${anchorX}, y=${anchorY}`);
+      // Show the custom HTML context menu, aligning bottom-right to anchor
+      showContextMenu(anchorX, anchorY);
     });
 
     // Optional: Handle left-click if needed (e.g., toggle main window?)
@@ -591,7 +589,6 @@ const createContextMenuWindow = () => {
       <div class="container">
         <div class="menu-items">
           <button id="accountBtn" class="menu-item">Account</button>
-          <button id="hideBtn" class="menu-item">Hide for 1 Hour</button>
           <button id="hotkeyBtn" class="menu-item">Change Hotkey</button>
           <div class="separator"></div>
           <button id="exitBtn" class="menu-item">Exit</button>
@@ -607,10 +604,6 @@ const createContextMenuWindow = () => {
           // Set up button click handlers using the exposed API
           document.getElementById('accountBtn').addEventListener('click', () => {
             window.contextMenuAPI.send('menu-account');
-          });
-          
-          document.getElementById('hideBtn').addEventListener('click', () => {
-            window.contextMenuAPI.send('menu-hide');
           });
           
           document.getElementById('hotkeyBtn').addEventListener('click', () => {
@@ -645,37 +638,41 @@ const createContextMenuWindow = () => {
 };
 
 // Show the custom context menu
-// Accepts optional x, y coordinates for positioning
-const showContextMenu = (x?: number, y?: number) => {
+// Accepts anchorX, anchorY coordinates for positioning the bottom-right corner
+const showContextMenu = (anchorX?: number, anchorY?: number) => {
   if (contextMenuOpen || !contextMenuWindow) return;
-  // Ensure mainWindow is available if positioning relative to it
-  if (x === undefined && y === undefined && !mainWindow) return;
+  // If anchor coordinates are not provided, we can't position correctly.
+  // Log an error or decide on a default position (e.g., screen center?).
+  if (anchorX === undefined || anchorY === undefined) {
+    console.error('[showContextMenu] Called without anchor coordinates. Cannot position menu.');
+    // Optionally, implement a fallback position here if needed
+    // For now, just return to prevent errors
+    return; 
+  }
   
   contextMenuOpen = true;
   
   const menuSize = contextMenuWindow.getSize();
+  console.log(`[showContextMenu] Menu size obtained: width=${menuSize[0]}, height=${menuSize[1]}`);
+  const menuWidth = menuSize[0];
+  const menuHeight = menuSize[1];
 
-  let positionX: number;
-  let positionY: number;
+  // --- Restore Bottom-Right Alignment Logic --- 
+  // Calculate top-left position to align the menu's bottom-right corner 
+  // with the anchor point (cursor or tray corner).
+  let positionX = anchorX - menuWidth;
+  let positionY = anchorY - menuHeight;
 
-  if (x !== undefined && y !== undefined) {
-    // Position based on provided coordinates (from tray click)
-    console.log(`[showContextMenu] Positioning menu at provided coordinates: x=${x}, y=${y}`);
-    positionX = x;
-    positionY = y;
-  } else if (mainWindow) {
-    // Position relative to the pill (mainWindow)
-    console.log(`[showContextMenu] Positioning menu relative to pill (mainWindow).`);
-    const pillBounds = mainWindow.getBounds();
-    positionX = Math.floor(pillBounds.x + (pillBounds.width / 2) - (menuSize[0] / 2));
-    positionY = pillBounds.y - menuSize[1] - 2;
-  } else {
-    // Fallback if coordinates not provided and mainWindow doesn't exist
-    console.warn('[showContextMenu] Cannot determine position. Coordinates not provided and mainWindow is null.');
-    return; // Can't position, so don't show
-  }
-  
-  // Position centered above the pill
+  // --- Optional Fine-Tuning --- 
+  // Adjust slightly if visual alignment isn't perfect due to borders, shadows, etc.
+  const fineTuneX = 0; // Adjust this value (e.g., +2 or -3) if needed
+  const fineTuneY = 0; // Adjust this value (e.g., +2 or -3) if needed
+  positionX += fineTuneX;
+  positionY += fineTuneY;
+
+  console.log(`[showContextMenu] Positioning menu top-left at: x=${positionX}, y=${positionY} (to align bottom-right with anchor x=${anchorX}, y=${anchorY}, fineTuneX=${fineTuneX}, fineTuneY=${fineTuneY})`);
+
+  // Set the calculated top-left position
   contextMenuWindow.setPosition(positionX, positionY);
   
   // Show the window
@@ -914,10 +911,14 @@ app.whenReady().then(() => {
   createContextMenuWindow();
 
   // Set up IPC handler for showing the custom context menu (from pill click)
-  ipcMain.on('show-context-menu', () => {
-    console.log('[IPC Main] Received show-context-menu event (from pill).');
-    // Call showContextMenu without coordinates to position relative to the pill
-    showContextMenu(); 
+  ipcMain.on('show-context-menu', (event) => {
+    console.log(`[IPC Main] Received show-context-menu event from pill.`);
+    // Get cursor position directly from the screen module
+    const { x: anchorX, y: anchorY } = screen.getCursorScreenPoint();
+    console.log(`[IPC Main] Cursor position from screen: x=${anchorX}, y=${anchorY}`);
+        
+    // Call showContextMenu with screen coordinates
+    showContextMenu(anchorX, anchorY); 
   });
 });
 
@@ -991,11 +992,6 @@ ipcMain.on('cancel-hotkey', () => {
 // === IPC Handlers for Context Menu (Registered ONCE) ===
 ipcMain.on('menu-account', () => {
   console.log('Account clicked');
-  hideContextMenu();
-});
-
-ipcMain.on('menu-hide', () => {
-  console.log('Hide for one hour clicked');
   hideContextMenu();
 });
 

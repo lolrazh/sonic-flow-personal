@@ -17,7 +17,7 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.removeAllListeners('toggle-dictation');
     };
   },
-  showContextMenu: () => {
+  showPillContextMenu: () => {
     ipcRenderer.send('show-context-menu');
   },
   insertTextAtCursor: (text: string) => {
