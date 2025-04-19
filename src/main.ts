@@ -87,6 +87,16 @@ const HOTKEY_OPTIONS = [
   'Ctrl+D'
 ];
 
+// Define the path to the icon using app.getAppPath(), pointing to the .ico file
+const assetsDir = path.join(app.getAppPath(), 'assets');
+const iconPath = path.join(assetsDir, 'icon.ico'); // Explicitly use .ico
+
+// Add a check to see if the icon file actually exists at runtime
+if (!fs.existsSync(iconPath)) {
+  console.error(`!!! Icon file not found at expected path: ${iconPath} !!!`);
+  // Optionally, you could try a fallback path or exit here
+}
+
 const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
@@ -105,7 +115,12 @@ const createWindow = () => {
       spellcheck: false,
       enableWebSQL: false,
     },
+    // Set the window icon
+    icon: iconPath,
   });
+
+  // Also set the icon explicitly after creation (optional but good practice)
+  mainWindow.setIcon(iconPath);
 
   // Handle window close event
   mainWindow.on('close', () => {
@@ -443,9 +458,17 @@ const createTray = () => {
       return;
     }
     
-    // Create a basic tray icon using a blank icon
-    const icon = nativeImage.createEmpty();
-    tray = new Tray(icon);
+    // Load the icon from the assets folder
+    const icon = nativeImage.createFromPath(iconPath);
+    
+    // Check if the icon was loaded successfully
+    if (icon.isEmpty()) {
+      console.error(`Failed to load tray icon from path: ${iconPath}. Using empty icon.`);
+      tray = new Tray(nativeImage.createEmpty()); // Fallback to empty
+    } else {
+      console.log(`Successfully loaded tray icon from path: ${iconPath}`);
+      tray = new Tray(icon);
+    }
     
     // Initial tray menu
     updateTrayMenu();
@@ -453,6 +476,9 @@ const createTray = () => {
     tray.setToolTip('Sonic Flow');
   } catch (error) {
     console.error('Failed to create tray:', error);
+    // Ensure tray is null if creation fails
+    if (tray) tray.destroy();
+    tray = null; 
   }
 };
 
