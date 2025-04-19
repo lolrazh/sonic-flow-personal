@@ -120,10 +120,10 @@ const createWindow = () => {
   // Also set the icon explicitly after creation (optional but good practice)
   mainWindow.setIcon(iconPath);
 
-  // Handle window close event
+  // Handle window close event - ALWAYS quit the app
   mainWindow.on('close', () => {
     console.log('Main window close event triggered, quitting application');
-    app.quit();
+    app.quit(); 
   });
 
   // Position window at the bottom center of the screen
@@ -924,7 +924,10 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  // Standard behavior: Quit when all windows are closed (except on macOS).
+  console.log('[App Event] window-all-closed - Checking platform...');
   if (process.platform !== 'darwin') {
+    console.log('[App Event] window-all-closed - Platform is not macOS, calling app.quit().');
     app.quit();
   }
 });
@@ -1002,21 +1005,29 @@ ipcMain.on('menu-exit', () => {
   console.log('[IPC Main] Received menu-exit event');
   hideContextMenu();
   
-  // Explicitly destroy the tray icon before quitting
-  if (tray) {
+  // Destroy context menu window immediately
+  if (contextMenuWindow) {
     try {
-      console.log('[IPC Main] Destroying tray icon...');
-      tray.destroy();
-      tray = null; // Nullify the reference
-      console.log('[IPC Main] Tray icon destroyed.');
+      contextMenuWindow.destroy();
     } catch (error) {
-      console.error('[IPC Main] Error destroying tray icon:', error);
+      console.error('Error destroying context menu window:', error);
     }
+    contextMenuWindow = null;
   }
   
-  console.log('[IPC Main] Calling app.quit()...');
+  // Destroy tray icon immediately
+  if (tray) {
+    try {
+      tray.destroy();
+    } catch (error) {
+      console.error('Error destroying tray icon:', error);
+    }
+    tray = null;
+  }
+  
+  console.log('[IPC Main] Calling app.quit() for graceful shutdown');
+  // Quit the application
   app.quit();
-  console.log('[IPC Main] app.quit() called.');
 });
 // === END IPC Handlers ===
 
